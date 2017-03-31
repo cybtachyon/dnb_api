@@ -1,0 +1,8 @@
+name = DNB API
+description = Defines an API that enables modules to interact with the DNB REST API.
+package = DNB
+core = 7.x
+configure = admin/config/dnb
+files[] = DnbConnection.php
+dependencies[] = composer_manager
+dependencies[] = libraries (2.x)

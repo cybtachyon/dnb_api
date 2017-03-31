@@ -1,0 +1,24 @@
+<?php
+
+/**
+ * @file
+ * Install/uninstall functions for the DNB API module.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function dnb_api_uninstall() {
+  variable_del('dnb_api_origin');
+  variable_del('dnb_api_origin_secret');
+}
+
+/**
+ * Implements hook_schema().
+ */
+function dnb_api_schema() {
+  $schema = array();
+  $schema['cache_dnb_api'] = drupal_get_schema_unprocessed('system', 'cache');
+  $schema['cache_dnb_api']['description'] = 'Cache table for storing DNB API Connections.';
+  return $schema;
+}
