@@ -1,0 +1,92 @@
+<?php
+
+/**
+ * @file
+ * Module file for the Drupal DNB API module.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function dnb_api_menu() {
+  // Settings.
+  $items['admin/config/dnb'] = array(
+    'title' => 'D&B',
+    'description' => 'Dun & Bradstreet API configuration.',
+    'position' => 'right',
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('access administration pages'),
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+  $items['admin/config/dnb/settings'] = array(
+    'title' => 'Settings',
+    'description' => 'Settings for the D&B API.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('dnb_api_settings'),
+    'access arguments' => array('administer site configuration'),
+    'weight' => -20,
+  );
+
+  return $items;
+}
+
+/**
+ * Form builder; The DNB API Config form.
+ *
+ * @return array
+ *   The system settings form structure.
+ *
+ * @ingroup forms
+ *
+ * @see system_settings_form()
+ */
+function dnb_api_settings() {
+  $form['dnb_api'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('D&B API Settings'),
+  );
+  $form['dnb_api']['dnb_api_origin'] = array(
+    '#type' => 'select',
+    '#title' => t('D&B API Origin'),
+    '#default_value' => variable_get('dnb_api_origin', 'https://plus.dnb.com/'),
+    '#options' => drupal_map_assoc(array('https://plus.dnb.com/')),
+    '#description' => t('The D&B API Origin Point.'),
+  );
+  $form['dnb_api']['dnb_api_secret'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Secret'),
+    '#default_value' => variable_get('dnb_api_secret', ''),
+  );
+
+  $form['#validate'][] = 'dnb_api_settings_validate';
+
+  return system_settings_form($form);
+}
+
+/**
+ * Validates the submitted settings form.
+ *
+ * @param array $form
+ *   The Drupal Form Array.
+ * @param array $form_state
+ *   The Drupal Form State Array.
+ */
+function dnb_api_settings_validate(array $form, array &$form_state) {
+  // Validate that the secret is base64 encoded.
+  $secret = $form_state['values']['dnb_api_secret'];
+  if (!empty($secret) && !preg_match('/^[a-zA-Z0-9\/\r\n+]*={0,2}$/', $secret)) {
+    if (@base64_encode(base64_decode($secret, TRUE)) !== $secret) {
+      $error = t("The secret does not appear to be base64 encoded, perhaps use '%encode'?.",
+        array('%encode' => base64_encode($secret)));
+      form_set_error('dnb_api_secret', $error);
+    }
+  }
+}
+
+/**
+ * Implements hook_flush_caches().
+ */
+function dnb_api_flush_caches() {
+  return array('cache_dnb_api');
+}
