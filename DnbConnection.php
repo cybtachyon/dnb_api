@@ -11,6 +11,8 @@
  * @TODO Replace hard Guzzle requirement to have it injected with PSR-7.
  */
 use Guzzle\Http\Client;
+use Guzzle\Http\ClientInterface;
+use Guzzle\Http\Exception\RequestException;
 
 /**
  * Class DnbConnection.
@@ -20,21 +22,21 @@ class DnbConnection {
   /**
    * The access token expiration timeout for accessing DNB API.
    *
-   * @var DateTime $accessExpiration
+   * @var DateTime
    */
   private $accessExpiration;
 
   /**
    * The access token for accessing DNB API.
    *
-   * @var string $accessToken
+   * @var string
    */
   private $accessToken;
 
   /**
    * The HTTP client for making API requests.
    *
-   * @var \Guzzle\Http\ClientInterface $client
+   * @var \Guzzle\Http\ClientInterface
    */
   private $client;
 
@@ -63,7 +65,7 @@ class DnbConnection {
    *
    * @TODO Use a PSR-7 HttpClientInterface and use dependency injection.
    */
-  public function __construct(\Guzzle\Http\ClientInterface $client) {
+  public function __construct(ClientInterface $client) {
     $this->client = $client;
     $this->originUrl = variable_get('dnb_api_origin', 'https://plus.dnb.com/');
     $this->apiSecret = variable_get('dnb_api_secret', '');
@@ -83,18 +85,37 @@ class DnbConnection {
   }
 
   /**
+   * Handles an exception from the HTTP Client.
+   *
+   * @param \Guzzle\Http\Exception\RequestException $exception
+   * @param string $action
+   */
+  private function handleException(RequestException $exception, $action = 'using') {
+    $response = $exception->getResponse();
+    $body = json_decode($exception->getResponse()->getBody());
+    $transcript = filter_xss(print_r($body->transactionDetail, TRUE));
+    watchdog('dnb_api', "Error %code in $action DNB API: %error %msg !body",
+      array(
+        '%code' => $response->getStatusCode(),
+        '%error' => isset($body->result->errorCode) ? $body->result->errorCode : '',
+        '%msg' => isset($body->result->errorMessage) ? $body->result->errorMessage : 'Unable to produce a response.',
+        '!body' => '<br/><pre>' . strlen($transcript) > 254 ? substr($transcript, 0, 251) . '...' : $transcript . '</pre>',
+      ));
+  }
+
+  /**
    * Retrieves an access token for the current connection.
    *
-   * @return string|NULL
+   * @return string|null
    *   The current connection's access token.
    */
   private function getAccessToken() {
-    // Resets
-    $cache = cache_get('dnb_api');
+    // Resets.
     if ($this->accessToken && $this->accessExpiration && REQUEST_TIME < $this->accessExpiration->getTimestamp()) {
       return $this->accessToken;
     }
-    if (isset($cache->data['accessToken']) && REQUEST_TIME < ($cache->data['accessExpirationTime'])) {
+    $cache = cache_get('dnb_api');
+    if (isset($cache->data['accessToken']) && REQUEST_TIME < $cache->data['accessExpirationTime']) {
       $this->setAccessToken($cache->data['accessToken']);
       return $this->accessToken;
     }
@@ -143,15 +164,9 @@ JSON;
       $response = $request->setBody($r_body, 'application/json')
         ->send();
     }
-    catch (\Guzzle\Http\Exception\RequestException $exception) {
+    catch (RequestException $exception) {
       $response = $exception->getResponse();
-      $body = json_decode($exception->getResponse()->getBody());
-      watchdog('type', 'Error %code in querying DNB API: %error %msg',
-        array(
-          '%code' => $exception->getCode(),
-          '%error' => isset($body->error->errorCode) ? $body->error->errorCode : '',
-          '%msg' => isset($body->error->errorMessage) ? $body->error->errorMessage : 'Unable to produce a response.',
-        ));
+      $this->handleException($exception, 'resetting');
     }
     if ($response->isSuccessful()) {
       $data = json_decode($response->getBody());
@@ -186,14 +201,9 @@ JSON;
     try {
       $body = json_decode($request->send()->getBody());
     }
-    catch (\Guzzle\Http\Exception\RequestException $exception) {
+    catch (RequestException $exception) {
+      $this->handleException($exception, 'querying');
       $body = json_decode($exception->getResponse()->getBody());
-      watchdog('type', 'Error %code in querying DNB API: %error %msg',
-        array(
-          '%code' => $exception->getCode(),
-          '%error' => isset($body->error->errorCode) ? $body->error->errorCode : '',
-          '%msg' => isset($body->error->errorMessage) ? $body->error->errorMessage : 'Unable to produce a response.',
-        ));
     }
     return $body;
   }
