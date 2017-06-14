@@ -88,7 +88,9 @@ class DnbConnection {
    * Handles an exception from the HTTP Client.
    *
    * @param \Guzzle\Http\Exception\RequestException $exception
+   *   The HTTP Request Exception.
    * @param string $action
+   *   An optional action that caused the error.
    */
   private function handleException(RequestException $exception, $action = 'using') {
     $response = $exception->getResponse();

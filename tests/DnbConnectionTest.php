@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Provides tests for DnbConnection.
- */
-
 namespace dnb_api\Tests;
 
 use DnbConnection;
@@ -206,4 +201,5 @@ JSON;
     $this->assertObjectHasAttribute('transactionDetail', $actual_response, '');
     $this->assertEquals($example_json, $actual_response);
   }
+
 }
