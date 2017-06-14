@@ -25,12 +25,14 @@ class DnbConnectionTest extends TestCase {
 
     // DUNS Number 362179884.
     $actual_response = $dnb->query('data/duns/362179884?productId=cmplnk&versionId=v1');
-
+    $response = json_decode($actual_response);
+    $tid = $response->transactionDetail->transactionID;
+    $time = $response->transactionDetail->transactionTimestamp;
     $example_json = <<<JSON
 {
   "transactionDetail": {
-    "transactionID": "rrt-f4ede2e2-d-ea-13085-12906000-39_335",
-    "transactionTimestamp": "2017-03-29T13:49:44.120Z",
+    "transactionID": $tid,
+    "transactionTimestamp": $time,
     "inLanguage": "en-US",
     "productID": "cmplnk",
     "productVersion": "1"
@@ -202,5 +204,6 @@ JSON;
     $this->assertNotEmpty($actual_response, 'DnbConnection not made.');
     $this->assertObjectNotHasAttribute('error', $actual_response);
     $this->assertObjectHasAttribute('transactionDetail', $actual_response, '');
+    $this->assertEquals($example_json, $actual_response);
   }
 }
